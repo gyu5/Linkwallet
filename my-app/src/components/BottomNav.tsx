@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items = [
-  { href: "/", label: "ホーム", icon: "home" },
+  { href: "/home", label: "ホーム", icon: "home" },
   { href: "/groups", label: "グループ", icon: "group" },
   { href: "/account", label: "アカウント", icon: "account_circle" },
 ];
