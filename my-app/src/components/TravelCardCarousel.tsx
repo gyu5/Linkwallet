@@ -2,6 +2,7 @@
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
+import Image from "next/image";
 import "swiper/css";
 import "swiper/css/pagination";
 
@@ -40,21 +41,21 @@ export default function TravelCardCarousel() {
 }
 
 function getTreeImage(progress: number) {
-    if (progress < 0.2) return "tree/1.jpg";
-    if (progress < 0.4) return "tree/2.jpg";
-    if (progress < 0.6) return "tree/3.jpg";
-    if (progress < 0.8) return "tree/4.jpg";
-    if (progress < 1.0) return "tree/5.jpg";
-    return "tree/6.jpg";
-  }
-  
+  if (progress < 0.2) return "tree/1.jpg";
+  if (progress < 0.4) return "tree/2.jpg";
+  if (progress < 0.6) return "tree/3.jpg";
+  if (progress < 0.8) return "tree/4.jpg";
+  if (progress < 1.0) return "tree/5.jpg";
+  return "tree/6.jpg";
+}
+
 
 function TravelCard({ title, progress }: TravelCard) {
   const percentage = Math.round(progress * 100);
   const treeImage = getTreeImage(progress);
 
   return (
-    <div className="rounded-2xl border border-gray-300 bg-white shadow-sm px-6 py-5">
+    <div className="rounded-2xl border border-gray-300 bg-white shadow-sm px-6 py-5 pt-5 pb-10">
       {/* タイトル */}
       <div className="text-lg font-semibold mb-4 text-black">{title}</div>
 
@@ -73,9 +74,11 @@ function TravelCard({ title, progress }: TravelCard) {
 
       {/* 🌳 木の画像（ここが核心） */}
       <div className="w-full h-48 flex justify-center items-center mb-6">
-        <img
-          src={treeImage}
+        <Image
+          src={`/${treeImage}`}    // public/tree/... に画像がある場合
           alt="tree-stage"
+          width={200}
+          height={200}
           className="h-full object-contain"
         />
       </div>

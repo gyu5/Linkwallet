@@ -10,7 +10,12 @@ const groups = [
 export default function GroupsPage() {
   return (
     <div className="min-h-screen bg-[#E6FAF4] relative pt-8">
-      <GroupList groups={groups} />
+      <div className="w-full max-w-sm px-4">
+        {/* ← text-center を追加してタイトルだけ中央寄せ */}
+        <h1 className="text-sm text-gray-700 mb-6 text-center">グループ</h1>
+
+        <GroupList groups={groups} />
+      </div>
 
       {/* 右下の追加ボタン */}
       <button
