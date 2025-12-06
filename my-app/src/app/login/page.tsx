@@ -22,8 +22,9 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-100">
-      <div className="flex flex-col items-center gap-6 p-8 bg-white rounded-xl shadow-md">
-        <h1 className="text-xl font-semibold">ログイン</h1>
+      <div className="flex flex-col items-center gap-4 p-8 bg-white rounded-xl shadow-md">
+        <div className="text-xl font-semibold text-gray-700">LinkWallet</div>
+        <div className="text-lg font-semibold text-gray-700">ログイン</div>
 
         {/* Google丸ボタン */}
         <button
@@ -32,7 +33,7 @@ export default function LoginPage() {
           aria-label="Googleでログイン"
         >
           <Image
-            src="/google-icon.png"  // public/google-icon.png を用意しておく
+            src="/google-icon.svg"  // public/google-icon.png を用意しておく
             alt="Google"
             width={260}
             height={64}
