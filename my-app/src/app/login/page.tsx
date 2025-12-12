@@ -4,13 +4,11 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function LoginPage() {
-  // ボタンを押したときに呼ばれる処理
   const handleLoginWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // ログイン完了後に戻したいURL
-        redirectTo: `${window.location.origin}/home`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
@@ -26,14 +24,13 @@ export default function LoginPage() {
         <div className="text-xl font-semibold text-gray-700">LinkWallet</div>
         <div className="text-lg font-semibold text-gray-700">ログイン</div>
 
-        {/* Google丸ボタン */}
         <button
           onClick={handleLoginWithGoogle}
           className="focus:outline-none hover:scale-105 transition"
           aria-label="Googleでログイン"
         >
           <Image
-            src="/google-icon.svg"  // public/google-icon.png を用意しておく
+            src="/google-icon.svg"
             alt="Google"
             width={260}
             height={64}
