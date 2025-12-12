@@ -64,7 +64,7 @@ function TravelCard({ title, progress }: TravelCard) {
       <div className="flex items-center gap-3 mb-3">
         <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
           <div
-            className="h-full rounded-full bg-blue-500"
+            className="h-full rounded-full bg-green-500"
             style={{ width: `${percentage}%` }}
           />
         </div>

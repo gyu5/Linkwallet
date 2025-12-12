@@ -18,7 +18,7 @@ type Group = {
           <div className="flex items-center gap-2">
             <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
               <div
-                className="h-full rounded-full bg-blue-500"
+                className="h-full rounded-full bg-green-500"
                 style={{ width: `${group.progress}%` }}
               />
             </div>
