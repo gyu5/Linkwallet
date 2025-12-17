@@ -2,7 +2,7 @@
 import GroupRow from "./GroupRow";
 
 type Group = {
-  id: number;
+  id: string;
   name: string;
   progress: number;
 };

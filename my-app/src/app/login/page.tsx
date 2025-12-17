@@ -1,16 +1,16 @@
 'use client';
 
 import Image from 'next/image';
-import { supabase } from '@/lib/supabaseClient';
+import { createSupabaseBrowserClient } from '@/lib/supabaseBrowser';
 
 export default function LoginPage() {
   // ボタンを押したときに呼ばれる処理
   const handleLoginWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await createSupabaseBrowserClient().auth.signInWithOAuth({
       provider: 'google',
       options: {
         // ログイン完了後に戻したいURL
-        redirectTo: `${window.location.origin}/home`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
