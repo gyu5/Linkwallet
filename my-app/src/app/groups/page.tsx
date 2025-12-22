@@ -2,7 +2,7 @@ import GroupList from "@/components/groups/GroupList";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+//import { cookies } from "next/headers";
 
 /*const groups = [
   { id: 1, name: "9月旅行", progress: 80 },

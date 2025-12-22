@@ -27,9 +27,9 @@ export default function NewGroupPage() {
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
 
   // グループ作成フォーム用
-  const [groupName, setGroupName] = useState("9月旅行");
-  const [amountPerPerson, setAmountPerPerson] = useState("30000");
-  const [deadline, setDeadline] = useState("2026-08-31");
+  const [groupName, setGroupName] = useState("グループ名");
+  const [amountPerPerson, setAmountPerPerson] = useState("0");
+  const [deadline, setDeadline] = useState("2026-01-01");
 
   const filteredUsers = MOCK_USERS.filter((user) =>
     user.name.toLowerCase().includes(search.toLowerCase())
@@ -107,7 +107,7 @@ function MemberSelectScreen({
     <div className="flex flex-col h-full">
       {/* ヘッダー */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-sm text-gray-500">グループ作成メンバー選択</span>
+        <span className="text-sm text-black">グループ作成メンバー選択</span>
         <button
           onClick={onDecide}
           disabled={!canDecide}
@@ -120,7 +120,7 @@ function MemberSelectScreen({
         </button>
       </div>
 
-      <h1 className="text-lg font-semibold mb-2">ユーザーを選択</h1>
+      <h1 className="text-lg font-semibold mb-2 text-black">ユーザーを選択</h1>
 
       {/* 検索ボックス */}
       <input
@@ -128,7 +128,7 @@ function MemberSelectScreen({
         placeholder="ユーザーを検索"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-full mb-4 px-3 py-2 rounded-md border border-gray-300 bg-white text-sm outline-none"
+        className="w-full mb-4 px-3 py-2 rounded-md border border-gray-500 bg-white text-sm text-black outline-none"
       />
 
       {/* ユーザー一覧 */}
@@ -140,7 +140,7 @@ function MemberSelectScreen({
               key={user.id}
               type="button"
               onClick={() => toggleUser(user.id)}
-              className="w-full flex items-center justify-between py-3 border-b border-gray-300 last:border-b-0"
+              className="w-full flex items-center justify-between py-3 border-b border-gray-500 last:border-b-0 text-black"
             >
               <div className="flex items-center gap-3">
                 {/* 左の丸（アイコン枠） */}
@@ -205,35 +205,35 @@ function GroupFormScreen({
 
       {/* 上部：グループアイコン + 名前 */}
       <div className="flex items-center gap-4 mb-8">
-        <div className="w-12 h-12 rounded-full border border-black bg-white" />
+        <div className="w-12 h-12 rounded-full border border-gray-500 bg-white" />
         <input
           type="text"
           value={groupName}
           onChange={(e) => setGroupName(e.target.value)}
-          className="bg-transparent border-b border-black text-xl font-bold outline-none flex-1"
+          className="bg-transparent border-b text-gray-500 text-xl font-bold outline-none flex-1 text-black"
         />
       </div>
 
       {/* 1人いくらか */}
       <div className="flex items-center text-xl mb-6">
-        <span className="mr-2">1人</span>
+        <span className="mr-2 text-gray-700">1人</span>
         <input
           type="number"
           value={amountPerPerson}
           onChange={(e) => setAmountPerPerson(e.target.value)}
-          className="border-b border-black bg-transparent text-xl font-bold outline-none w-32 text-right mr-2"
+          className="border-b border-black bg-transparent text-gray-500 text-xl font-bold outline-none w-32 text-right mr-2"
         />
-        <span>円</span>
+        <span className="text-gray-700">円</span>
       </div>
 
       {/* 期限 */}
       <div className="text-xl mb-10 flex items-center gap-4">
-        <span>期限</span>
+        <span className="text-gray-700">期限</span>
         <input
           type="date"
           value={deadline}
           onChange={(e) => setDeadline(e.target.value)}
-          className="bg-transparent border-b border-black text-lg outline-none"
+          className="bg-transparent border-b text-gray-700 text-lg outline-none text-black"
         />
       </div>
 

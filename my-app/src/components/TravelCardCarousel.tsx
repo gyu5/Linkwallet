@@ -7,18 +7,13 @@ import "swiper/css";
 import "swiper/css/pagination";
 import Link from "next/link";
 
-type TravelCard = {
-  title: string;
-  progress: number; // 0〜1
+type Card = {
+  id: string;
+  display_name: string;
+  progress: number;
 };
 
-const cards: TravelCard[] = [
-  { title: "9月旅行", progress: 0.1 },
-  { title: "PC 買い替え", progress: 0.35 },
-  { title: "引っ越し資金", progress: 0.55 },
-];
-
-export default function TravelCardCarousel() {
+export default function TravelCardCarousel({groups}: {groups: Card[]}) {
   return (
     <div className="flex justify-center pt-8">
       {/* 画面幅に合わせて広がるが、最大幅は制限して「ちょうどよく」見せる */}
@@ -30,9 +25,9 @@ export default function TravelCardCarousel() {
           pagination={{ clickable: true }}
           className="pb-8"
         >
-          {cards.map((card, idx) => (
+          {groups.map((card: Card, idx: number) => (
             <SwiperSlide key={idx}>
-              <TravelCard {...card} />
+              <TravelCard group={card} />
             </SwiperSlide>
           ))}
         </Swiper>
@@ -42,23 +37,25 @@ export default function TravelCardCarousel() {
 }
 
 function getTreeImage(progress: number) {
-  if (progress < 0.2) return "tree/1.jpg";
-  if (progress < 0.4) return "tree/2.jpg";
-  if (progress < 0.6) return "tree/3.jpg";
-  if (progress < 0.8) return "tree/4.jpg";
-  if (progress < 1.0) return "tree/5.jpg";
-  return "tree/6.jpg";
+  if (progress <= 12.5) return "tree/tree_seichou01.png";
+  if (progress <= 25) return "tree/tree_seichou02.png";
+  if (progress <= 37.5) return "tree/tree_seichou03.png";
+  if (progress <= 50) return "tree/tree_seichou04.png";
+  if (progress <= 62.5) return "tree/tree_seichou05.png";
+  if (progress <= 75) return "tree/tree_seichou06.png";
+  if (progress <= 87.5) return "tree/tree_seichou07.png";
+  return "tree/tree_seichou08.png";
 }
 
 
-function TravelCard({ title, progress }: TravelCard) {
-  const percentage = Math.round(progress * 100);
-  const treeImage = getTreeImage(progress);
+function TravelCard({ group }: { group: Card }) {
+  const percentage = group.progress;
+  const treeImage = getTreeImage(percentage);
 
   return (
     <div className="rounded-2xl border border-gray-300 bg-white shadow-sm px-6 py-5 pt-5 pb-10">
       {/* タイトル */}
-      <div className="text-lg font-semibold mb-4 text-black">{title}</div>
+      <div className="text-lg font-semibold mb-4 text-black">{group.display_name}</div>
 
       {/* 進捗バー */}
       <div className="flex items-center gap-3 mb-3">
@@ -87,7 +84,7 @@ function TravelCard({ title, progress }: TravelCard) {
       {/* ボタン */}
       <div className="flex justify-center">
         <Link href="/points/purchase">
-          <button className="px-6 py-2 rounded-full border border-purple-200 text-xs text-purple-500 bg-purple-50">
+          <button className="px-6 py-2 rounded-full border border-white-200 text-xs text-white-500 bg-red-500">
             ポイント購入
           </button>
         </Link>
