@@ -2,15 +2,20 @@
 
 import Image from 'next/image';
 import { createSupabaseBrowserClient } from '@/lib/supabaseBrowser';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+  const router = useRouter();
+  
   // ボタンを押したときに呼ばれる処理
   const handleLoginWithGoogle = async () => {
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    console.log("redirectTo:", redirectTo);
     const { error } = await createSupabaseBrowserClient().auth.signInWithOAuth({
       provider: 'google',
       options: {
         // ログイン完了後に戻したいURL
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: redirectTo,
       },
     });
 
