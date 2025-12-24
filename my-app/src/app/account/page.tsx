@@ -70,6 +70,18 @@ export default function AccountPage() {
             </span>
           </div>
         </section>
+
+         {/* プロフィール変更ボタン */}
+         <section className="pt-2">
+          <button
+            type="button"
+            // TODO: 実際のプロフィール編集ページのパスに合わせて変更
+            onClick={() => (window.location.href = "/account/profile")}
+            className="w-full py-2 rounded-full bg-emerald-500 text-white text-sm font-medium shadow-sm active:scale-95 transition"
+          >
+            プロフィールを編集
+          </button>
+        </section>
       </div>
     </main>
   );

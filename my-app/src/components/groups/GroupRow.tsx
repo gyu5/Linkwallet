@@ -1,6 +1,6 @@
 // components/groups/GroupRow.tsx
 type Group = {
-    id: number;
+    id: string;
     name: string;
     progress: number;
   };
