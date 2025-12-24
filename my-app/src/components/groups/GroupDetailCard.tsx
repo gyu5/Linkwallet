@@ -20,14 +20,14 @@ type GroupDetailCardProps = {
 };
 
 function getTreeImage(progress: number) {
-  if (progress < 0.125) return "tree/tree_seichou01.png";
-  if (progress < 0.25) return "tree/tree_seichou02.png";
-  if (progress < 0.375) return "tree/tree_seichou03.png";
-  if (progress < 0.5) return "tree/tree_seichou04.png";
-  if (progress < 0.625) return "tree/tree_seichou05.png";
-  if (progress < 0.75) return "tree/tree_seichou06.png";
-  if (progress < 0.875) return "tree/tree_seichou07.png";
-  return "tree/tree_seichou08.png";
+  if (progress < 12.5) return "/tree/tree_seichou01.png";
+  if (progress < 25) return "/tree/tree_seichou02.png";
+  if (progress < 37.5) return "/tree/tree_seichou03.png";
+  if (progress < 50) return "/tree/tree_seichou04.png";
+  if (progress < 62.5) return "/tree/tree_seichou05.png";
+  if (progress < 75) return "/tree/tree_seichou06.png";
+  if (progress < 87.5) return "/tree/tree_seichou07.png";
+  return "/tree/tree_seichou08.png";
 }
 
 export default function GroupDetailCard({
