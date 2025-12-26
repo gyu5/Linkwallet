@@ -1,20 +1,60 @@
 'use client';
 
-import { useState } from "react";
-
-const DUMMY_ID = '00000000';
+import { useEffect, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabaseBrowser";
+import Image from "next/image";
 
 export default function AccountPage() {
   const [copied, setCopied] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [displayName, setDisplayName] = useState("");
+
+  const getInviteCode = async () => {
+    const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error(error);
+      return;
+    }
+    console.log("data.user_id:", data.user?.id);
+    const { data: profileData, error: profileError } = await supabase.from("users").select("invite_code, avatar_url, display_name").eq("id", data.user?.id).single();
+    if (profileError) {
+      console.error(profileError);
+      return;
+    }
+    console.log("profileData:", profileData);
+    setInviteCode(profileData?.invite_code ?? "");
+    setAvatarUrl(profileData?.avatar_url ?? "");
+    setDisplayName(profileData?.display_name ?? "");
+  }
+  useEffect(() => {
+    getInviteCode();
+  }, []);
 
   const handleCopy = async () => {
+    const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase.auth.getUser();
+    console.log("data:", data);
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const { data: profileData, error: profileError } = await supabase.from("users").select("invite_code, avatar_url").eq("id", data.user?.id).single();
+    if (profileError) {
+      console.error(profileError);
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(DUMMY_ID);
+      await navigator.clipboard.writeText(profileData?.invite_code ?? "");
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (e) {
       console.error(e);
     }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   return (
@@ -28,13 +68,19 @@ export default function AccountPage() {
         {/* アカウントカード */}
         <section className="bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
           {/* アイコン丸 */}
-          <div className="w-12 h-12 rounded-full border border-gray-300 bg-white" />
+          {avatarUrl ? (
+            <div className="w-12 h-12 rounded-full border border-gray-300 overflow-hidden bg-white">
+              <Image src={avatarUrl} alt="アイコン" width={48} height={48} />
+            </div>
+          ) : (
+            <div className="w-full h-full bg-white" />  // 画像未設定時のプレースホルダ
+          )}
 
           {/* アカウント名 & ID */}
           <div className="flex-1">
-            <p className="text-xs text-gray-800 mb-1">アカウント名</p>
+            <p className="text-xs text-gray-800 mb-1">{displayName}</p>
             <p className="text-[11px] text-gray-500">
-              ID：<span className="tracking-[0.25em]">{DUMMY_ID}</span>
+              Invite Code：<span className="tracking-[0.25em]">{inviteCode}</span>
             </p>
           </div>
 

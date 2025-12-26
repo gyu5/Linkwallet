@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ChangeEvent, FormEvent } from "react";
+import { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import Image from "next/image";
 import { createSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 const DEFAULT_AVATAR = "/default_pfp.jpg"; // なければ好きなデフォルト画像に変更
@@ -22,6 +22,33 @@ export default function ProfileEditPage() {
   };
 
   const supabase = createSupabaseBrowserClient();
+  
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+      if (error || !user) return;
+
+      const { data: profile } = await supabase
+        .from("users")                 // 実際のテーブル名に合わせる
+        .select("display_name, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!profile) return;
+
+      if (profile.display_name) {
+        setDisplayName(profile.display_name);
+      }
+      if (profile.avatar_url) {
+        setAvatarPreview(profile.avatar_url);  // ★ 既存アバターを表示
+      }
+    };
+
+    fetchProfile();
+  }, [supabase]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,14 +68,14 @@ export default function ProfileEditPage() {
   }
 
   // 2. アバター画像を Storage にアップロード（あれば）
-  let avatarUrl: string | null = null;
+  let avatarUrl: string | null = avatarPreview;
 
   if (avatarFile) {
     const fileExt = avatarFile.name.split(".").pop();
     const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("avatars") // ★ 実際のバケット名に合わせて変更
+      .from("user_pf") // ★ 実際のバケット名に合わせて変更
       .upload(filePath, avatarFile, {
         cacheControl: "3600",
         upsert: true,
@@ -61,13 +88,33 @@ export default function ProfileEditPage() {
     // 公開URLを使う場合
     const {
       data: { publicUrl },
-    } = supabase.storage.from("avatars").getPublicUrl(filePath);
+    } = supabase.storage.from("user_pf").getPublicUrl(filePath);
     avatarUrl = publicUrl;
+  }
+  
+  for (let i = 0; i < 20; i++) {
+    const n = Math.floor(Math.random() * 10000);       // 0〜9999
+    const code = n.toString().padStart(4, "0");
+    
+    const inviteCode = displayName + "#" + code;
+  
+    const exists = await supabase
+      .from("users")
+      .select("id")
+      .eq("invite_code", inviteCode)
+      .maybeSingle();
+
+
+    if (!exists.data) {
+      // この組み合わせは空いてるので採用
+      await supabase.from("users").update({ invite_code: inviteCode }).eq("id", user.id);
+      break;
+    }
   }
 
       // 3. profiles テーブルを更新
       const { error: updateError } = await supabase
-      .from("profiles") // ★ 実際のテーブル名に合わせて変更
+      .from("users") // ★ 実際のテーブル名に合わせて変更
       .update({
         display_name: displayName,
         avatar_url: avatarUrl, // カラム名は実際に合わせて
