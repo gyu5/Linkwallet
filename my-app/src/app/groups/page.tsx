@@ -14,6 +14,7 @@ type GroupJoined = {
   id: string;
   display_name: string;
   goal_amount: number;
+  photo_url: string | null;
 };
 
 type UserGroupRow = {
@@ -33,7 +34,7 @@ export default async function GroupsPage() {
 
   const {data, error} = await supabase
   .from("user_groups")
-  .select("groups:group_id (id, display_name, goal_amount), group_id, saving_amount")
+  .select("groups:group_id (id, display_name, goal_amount, photo_url), group_id, saving_amount")
   .eq("user_id", user.data.user?.id)
   .returns<UserGroupRow[]>();
 
@@ -49,12 +50,13 @@ export default async function GroupsPage() {
     data && data.length > 0 ? data.map((row) => {
       const grp = row.groups as GroupJoined;
       const goal = grp?.goal_amount ?? 0;
-      const saving = Math.round(row.saving_amount / goal * 100);
+      const saving = goal > 0 ? Math.round((row.saving_amount / goal) * 100) : 0;
 
       return {
         id: grp?.id ?? row.group_id,    // 念のためフォールバック
         name: grp?.display_name ?? "",
         progress: saving,
+        photoUrl: grp?.photo_url ?? null,
       };
     }) : [];
 

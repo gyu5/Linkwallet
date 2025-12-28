@@ -3,13 +3,27 @@ type Group = {
     id: string;
     name: string;
     progress: number;
+    photoUrl?: string | null;
   };
   
   export default function GroupRow({ group }: { group: Group }) {
     return (
       <div className="border-b border-gray-300 py-4 flex items-center gap-4">
-        {/* 左の丸アイコン */}
-        <div className="w-12 h-12 rounded-full border border-gray-700 bg-white" />
+        {/* 左の丸アイコン（グループ画像） */}
+        <div className="w-12 h-12 rounded-full border border-gray-700 bg-white overflow-hidden flex items-center justify-center">
+          {group.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={group.photoUrl}
+              alt={group.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-xs text-gray-500">
+              {group.name.at(0)}
+            </span>
+          )}
+        </div>
   
         {/* テキスト＋進捗バー */}
         <div className="flex-1">

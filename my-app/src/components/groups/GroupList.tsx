@@ -6,6 +6,7 @@ type Group = {
   id: string;
   name: string;
   progress: number;
+  photoUrl?: string | null;
 };
 
 export default function GroupList({ groups }: { groups: Group[] }) {

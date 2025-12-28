@@ -1,18 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 
 type User = {
   id: number;
   name: string;
+  avatarUrl?: string | null;
 };
 
-const MOCK_USERS: User[] = [
-  { id: 1, name: "ユーザーA" },
-  { id: 2, name: "ユーザーB" },
-  { id: 3, name: "ユーザーC" },
-];
 
 type Step = "selectMembers" | "groupForm";
 
@@ -25,13 +22,85 @@ export default function NewGroupPage() {
   // メンバー選択用
   const [search, setSearch] = useState("");
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [friends, setFriends] = useState<User[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchFriends = async () => {
+      try {
+        const supabase = createSupabaseBrowserClient();
+
+        // ログインユーザー取得
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData?.user) {
+          console.error(userError);
+          setFetchError("ユーザー情報の取得に失敗しました");
+          return;
+        }
+
+        // フレンドID一覧取得
+        const {
+          data: friendRelations,
+          error: friendsError,
+        } = await supabase
+          .from("user_friends")
+          .select("friend_id")
+          .eq("user_id", userData.user.id);
+
+        if (friendsError) {
+          console.error(friendsError);
+          setFetchError("フレンド一覧の取得に失敗しました");
+          return;
+        }
+
+        if (!friendRelations || friendRelations.length === 0) {
+          setFriends([]);
+          return;
+        }
+
+        const friendIds = friendRelations.map((f) => f.friend_id);
+
+        // 実際のユーザー情報をまとめて取得
+        const {
+          data: friendUsers,
+          error: friendUsersError,
+        } = await supabase
+          .from("users")
+          .select("id, display_name, avatar_url")
+          .in("id", friendIds);
+
+        if (friendUsersError) {
+          console.error(friendUsersError);
+          setFetchError("フレンド情報の取得に失敗しました");
+          return;
+        }
+
+        const mappedFriends: User[] =
+          friendUsers?.map((u) => ({
+            id: u.id,
+            name: u.display_name as string,
+            avatarUrl: (u as any).avatar_url ?? null,
+          })) ?? [];
+
+        setFriends(mappedFriends);
+      } catch (e) {
+        console.error(e);
+        setFetchError("フレンド情報の取得中にエラーが発生しました");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFriends();
+  }, []);
 
   // グループ作成フォーム用
   const [groupName, setGroupName] = useState("グループ名");
   const [amountPerPerson, setAmountPerPerson] = useState("0");
   const [deadline, setDeadline] = useState("2026-01-01");
 
-  const filteredUsers = MOCK_USERS.filter((user) =>
+  const filteredUsers = friends.filter((user) =>
     user.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -51,7 +120,7 @@ export default function NewGroupPage() {
     router.push("/groups");
   };
 
-  const selectedUsers = MOCK_USERS.filter((u) =>
+  const selectedUsers = friends.filter((u) =>
     selectedUserIds.includes(u.id)
   );
 
@@ -190,22 +259,155 @@ function GroupFormScreen({
   selectedUsers,
   onCreate,
 }: GroupFormProps) {
+  const [groupIcon, setGroupIcon] = useState<string | null>(null);
+  const [groupIconFile, setGroupIconFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const supabase = createSupabaseBrowserClient();
+
+  const handleIconChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setGroupIconFile(file);
+    const url = URL.createObjectURL(file);
+    setGroupIcon(url);
+  };
+
+  const handleCreateClick = async () => {
+    if (saving) return;
+
+    try {
+      setSaving(true);
+
+      // 1. ログインユーザー取得
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error(userError);
+        alert("ユーザー情報の取得に失敗しました");
+        return;
+      }
+
+      // 2. グループアイコンを Storage にアップロード（あれば）
+      let photoUrl: string | null = null;
+
+      if (groupIconFile) {
+        const fileExt = groupIconFile.name.split(".").pop();
+        const filePath = `${user.id}/${Date.now()}_group.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("user_pf")
+          .upload(filePath, groupIconFile, {
+            cacheControl: "3600",
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.error(uploadError);
+          alert("グループアイコンのアップロードに失敗しました");
+          return;
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("user_pf").getPublicUrl(filePath);
+        photoUrl = publicUrl;
+      }
+
+      // 3. groups テーブルにグループを作成
+      const goalAmount = Number(amountPerPerson || "0");
+
+      const {
+        data: groupData,
+        error: groupError,
+      } = await supabase
+        .from("groups")
+        .insert({
+          display_name: groupName,
+          photo_url: photoUrl,
+          dead_line: deadline,
+          goal_amount: goalAmount,
+        })
+        .select("id")
+        .single();
+
+      if (groupError || !groupData) {
+        console.error(groupError);
+        alert("グループの作成に失敗しました");
+        return;
+      }
+
+      const groupId = groupData.id;
+
+      // 4. user_groups テーブルに参加ユーザーを登録
+      const memberIds = Array.from(
+        new Set([...selectedUsers.map((u) => u.id), user.id])
+      );
+
+      const rows = memberIds.map((id) => ({
+        user_id: id,
+        group_id: groupId,
+        saving_amount: 0,
+      }));
+
+      const { error: userGroupsError } = await supabase
+        .from("user_groups")
+        .insert(rows);
+
+      if (userGroupsError) {
+        console.error(userGroupsError);
+        alert("グループメンバーの登録に失敗しました");
+        return;
+      }
+
+      // 5. 正常終了時は上位のハンドラを呼んで画面遷移などを任せる
+      onCreate();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* ヘッダー */}
       <div className="flex items-center justify-between mb-6">
         <span className="text-sm text-gray-500">グループ作成</span>
         <button
-          onClick={onCreate}
-          className="px-4 py-1 rounded-full text-sm font-semibold bg-purple-200 text-purple-800"
+          onClick={handleCreateClick}
+          disabled={saving}
+          className={`px-4 py-1 rounded-full text-sm font-semibold ${
+            saving
+              ? "bg-purple-100 text-purple-400 cursor-not-allowed"
+              : "bg-purple-200 text-purple-800"
+          }`}
         >
-          作成
+          {saving ? "作成中..." : "作成"}
         </button>
       </div>
 
       {/* 上部：グループアイコン + 名前 */}
       <div className="flex items-center gap-4 mb-8">
-        <div className="w-12 h-12 rounded-full border border-gray-500 bg-white" />
+        <label className="w-12 h-12 rounded-full border border-gray-500 bg-white overflow-hidden flex items-center justify-center cursor-pointer">
+          {groupIcon ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={groupIcon}
+              alt="グループアイコン"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-xs text-gray-500">アイコン</span>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleIconChange}
+          />
+        </label>
         <input
           type="text"
           value={groupName}
@@ -237,7 +439,7 @@ function GroupFormScreen({
         />
       </div>
 
-      {/* メンバー丸アイコン */}
+      {/* メンバー丸アイコン + 表示名 */}
       <div className="flex gap-4">
         {selectedUsers.length === 0 ? (
           <>
@@ -249,9 +451,25 @@ function GroupFormScreen({
           selectedUsers.map((user) => (
             <div
               key={user.id}
-              className="w-10 h-10 rounded-full border border-black bg-white flex items-center justify-center text-xs"
+              className="flex flex-col items-center gap-1 w-16"
             >
-              {user.name.at(-1)}
+              <div className="w-10 h-10 rounded-full border border-black bg-white overflow-hidden flex items-center justify-center">
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xs text-black">
+                    {user.name.at(0)}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-black text-center truncate w-full">
+                {user.name}
+              </span>
             </div>
           ))
         )}

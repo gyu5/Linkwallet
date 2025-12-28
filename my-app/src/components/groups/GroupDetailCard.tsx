@@ -9,9 +9,10 @@ import "swiper/css/pagination";
 import GroupMembersList from "./GroupMembersList";
 
 type Member = {
-  id: number;
+  id: string;
   name: string;
   progress: number;
+  avatarUrl?: string | null;
 };
 
 type GroupDetailCardProps = {

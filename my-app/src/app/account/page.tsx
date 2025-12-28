@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import Image from "next/image";
+const DEFAULT_AVATAR = "/default_pfp.jpg"; 
+
 
 export default function AccountPage() {
   const [copied, setCopied] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(DEFAULT_AVATAR);
   const [displayName, setDisplayName] = useState("");
+  const [friend_invite_code, setFriendInviteCode] = useState("");
+  const [friendMessage, setFriendMessage] = useState<string | null>(null);
 
   const getInviteCode = async () => {
     const supabase = createSupabaseBrowserClient();
@@ -17,15 +21,17 @@ export default function AccountPage() {
       console.error(error);
       return;
     }
-    console.log("data.user_id:", data.user?.id);
     const { data: profileData, error: profileError } = await supabase.from("users").select("invite_code, avatar_url, display_name").eq("id", data.user?.id).single();
     if (profileError) {
       console.error(profileError);
       return;
     }
-    console.log("profileData:", profileData);
+
     setInviteCode(profileData?.invite_code ?? "");
-    setAvatarUrl(profileData?.avatar_url ?? "");
+    if (profileData?.avatar_url) {
+      setAvatarUrl(profileData.avatar_url);  // ★ 既存アバターを表示
+    } 
+
     setDisplayName(profileData?.display_name ?? "");
   }
   useEffect(() => {
@@ -35,6 +41,8 @@ export default function AccountPage() {
   const handleCopy = async () => {
     const supabase = createSupabaseBrowserClient();
     const { data, error } = await supabase.auth.getUser();
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(DEFAULT_AVATAR);
+
     console.log("data:", data);
     if (error) {
       console.error(error);
@@ -55,6 +63,71 @@ export default function AccountPage() {
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const supabase = createSupabaseBrowserClient();
+
+
+  // フレンド追加
+  const handleAddFriend = async () => {
+    setFriendMessage(null);
+
+    // 自分
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user) {
+      setFriendMessage("ログイン情報が取得できませんでした");
+      return;
+    }
+
+    // ① invite_code から相手ユーザーを検索
+    const { data: target, error: findError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("invite_code", friend_invite_code)
+      .maybeSingle();
+    console.log("target:", target);
+
+    if (findError || !target) {
+      setFriendMessage("その招待コードのユーザーが見つかりません");
+      return;
+    }
+    if (target.id === user.id) {
+      setFriendMessage("自分自身は追加できません");
+      return;
+    }
+
+    // ② 既にフレンドかチェック（user_friends テーブル想定）
+    const { data: already } = await supabase
+      .from("user_friends")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .eq("friend_id", target.id)
+      .maybeSingle();
+
+    if (already) {
+      setFriendMessage("すでにフレンドです");
+      return;
+    }
+
+    // ③ 双方向で 2 行 INSERT
+    const { error: insertError } = await supabase
+      .from("user_friends")
+      .insert([
+        { user_id: user.id, friend_id: target.id },
+        { user_id: target.id, friend_id: user.id },
+      ]);
+
+    if (insertError) {
+      console.error(insertError);
+      setFriendMessage("フレンド追加に失敗しました");
+      return;
+    }
+
+    setFriendMessage("フレンドを追加しました");
+    setFriendInviteCode("");
   };
 
   return (
@@ -105,15 +178,19 @@ export default function AccountPage() {
 
         {/* 検索ボックス（見た目だけ） */}
         <section>
-          <div className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm px-4 py-2">
+          <div className="flex items-center bg-white border border-gray-400 rounded-full shadow-sm px-4 py-2">
             <input
               type="text"
+              value={friend_invite_code}
+              onChange={(e) => setFriendInviteCode(e.target.value)}
               placeholder="ID"
-              className="flex-1 bg-transparent outline-none text-sm placeholder-gray-400"
+              className="flex-1 bg-transparent outline-none text-sm placeholder-gray-500 text-gray-500"
             />
-            <span className="material-symbols-outlined text-gray-500 text-lg">
-              search
-            </span>
+            <button type="button" onClick={handleAddFriend}>
+              <span className="material-symbols-outlined text-gray-500 text-lg">
+                search
+              </span>
+            </button>
           </div>
         </section>
 
@@ -129,6 +206,22 @@ export default function AccountPage() {
           </button>
         </section>
       </div>
+      {friendMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl px-6 py-4 w-72 shadow-lg">
+            <p className="text-sm text-center text-gray-800 mb-4">
+              {friendMessage}
+            </p>
+            <button
+              type="button"
+              onClick={() => setFriendMessage(null)}
+              className="w-full rounded-full bg-emerald-500 text-white text-xs font-semibold py-2 active:scale-95"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
