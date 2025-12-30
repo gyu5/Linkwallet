@@ -4,9 +4,11 @@
 import { useState } from "react";
 import PurchaseHeader from "./PurchaseHeader";
 import AmountInput from "./AmountInput";
+import { createSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 
 type PurchaseFormProps = {
   goalName: string;
+  groupId: string;
 };
 
 type PopupState =
@@ -14,10 +16,11 @@ type PopupState =
   | { type: "error"; message: string }
   | null;
 
-export default function PurchaseForm({ goalName }: PurchaseFormProps) {
+export default function PurchaseForm({ goalName, groupId }: PurchaseFormProps) {
   const [amount, setAmount] = useState("");
   const [popup, setPopup] = useState<PopupState>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const supabase = createSupabaseBrowserClient();
 
   const handleConfirm = async () => {
     if (!amount) {
@@ -28,49 +31,85 @@ export default function PurchaseForm({ goalName }: PurchaseFormProps) {
       return;
     }
 
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      setPopup({
+        type: "error",
+        message: "金額は0より大きい数値を入力してください。",
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
 
-      // TODO: 実際のバックエンドのエンドポイントとパラメータに合わせて修正してください
-      const res = await fetch("/api/points/purchase", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          goalName,
-          amount: Number(amount),
-        }),
-      });
+      // ログインユーザー取得
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      if (!res.ok) {
-        // ステータスコード的に失敗
+      if (userError || !user) {
+        console.error(userError);
         setPopup({
           type: "error",
-          message: "購入処理に失敗しました。時間をおいて再度お試しください。",
+          message: "ログイン情報の取得に失敗しました。",
         });
         return;
       }
 
-      // バックエンドが JSON で結果を返す想定
-      const data = await res.json().catch(() => ({}));
+      // 現在の saving_amount を取得
+      const { data: row, error: fetchError } = await supabase
+        .from("user_groups")
+        .select("saving_amount")
+        .eq("user_id", user.id)
+        .eq("group_id", groupId)
+        .maybeSingle();
 
-      const isSuccess =
-        data.success !== undefined ? Boolean(data.success) : true;
-
-      if (isSuccess) {
-        setPopup({
-          type: "success",
-          message: "ポイントの購入が完了しました。",
-        });
-      } else {
+      if (fetchError) {
+        console.error(fetchError);
         setPopup({
           type: "error",
-          message:
-            data.message ??
-            "購入処理に失敗しました。時間をおいて再度お試しください。",
+          message: "現在の貯金額の取得に失敗しました。",
         });
+        return;
       }
+
+      if (!row) {
+        setPopup({
+          type: "error",
+          message: "このグループに参加していないため、貯金できません。",
+        });
+        return;
+      }
+
+      const currentSaving = Number(row.saving_amount ?? 0);
+      const newSaving = currentSaving + numericAmount;
+
+      console.log("currentSaving", currentSaving);
+      console.log("newSaving", newSaving);
+      console.log("groupId", groupId);
+      console.log("user.id", user.id);
+
+      const { error: updateError } = await supabase
+        .from("user_groups")
+        .update({ saving_amount: newSaving })
+        .eq("user_id", user.id)
+        .eq("group_id", groupId);
+
+      if (updateError) {
+        console.error(updateError);
+        setPopup({
+          type: "error",
+          message: "貯金額の更新に失敗しました。",
+        });
+        return;
+      }
+
+      setPopup({
+        type: "success",
+        message: "ポイントの購入が完了しました。",
+      });
     } catch (e) {
       console.error(e);
       setPopup({

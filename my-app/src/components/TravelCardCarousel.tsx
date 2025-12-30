@@ -83,9 +83,9 @@ function TravelCard({ group }: { group: Card }) {
 
       {/* ボタン */}
       <div className="flex justify-center">
-        <Link href="/points/purchase">
+        <Link href={`/points/purchase/${group.id}`}>
           <button className="px-6 py-2 rounded-full border border-white-200 text-xs text-white-500 bg-red-500">
-            ポイント購入
+            貯金する
           </button>
         </Link>
       </div>
