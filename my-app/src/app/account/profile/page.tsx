@@ -32,7 +32,7 @@ export default function ProfileEditPage() {
       if (error || !user) return;
 
       const { data: profile } = await supabase
-        .from("users")                 // 実際のテーブル名に合わせる
+        .from("users")
         .select("display_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
@@ -42,8 +42,12 @@ export default function ProfileEditPage() {
       if (profile.display_name) {
         setDisplayName(profile.display_name);
       }
-      if (profile.avatar_url) {
-        setAvatarPreview(profile.avatar_url);  // ★ 既存アバターを表示
+      // Google アカウント由来のアイコンは無視して、デフォルトを使う
+      const avatar = profile.avatar_url as string | null;
+      if (avatar && !avatar.includes("lh3.googleusercontent.com")) {
+        setAvatarPreview(avatar);
+      } else {
+        setAvatarPreview(DEFAULT_AVATAR);
       }
     };
 

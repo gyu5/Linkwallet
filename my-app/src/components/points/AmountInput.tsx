@@ -29,7 +29,7 @@ export default function AmountInput({ amount, onChange }: AmountInputProps) {
       </label>
 
       <div className="flex justify-end pr-2">
-        <span className="text-sm font-medium text-black">貯める</span>
+        <span className="text-lg font-medium text-black">貯める</span>
       </div>
     </div>
   );

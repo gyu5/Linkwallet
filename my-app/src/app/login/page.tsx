@@ -28,6 +28,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-100">
       <div className="flex flex-col items-center gap-4 p-8 bg-white rounded-xl shadow-md">
+        <Image src="/logo.png" alt="LinkWallet logo" width={64} height={64} />
         <div className="text-xl font-semibold text-gray-700">LinkWallet</div>
         <div className="text-lg font-semibold text-gray-700">ログイン</div>
 

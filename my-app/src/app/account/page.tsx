@@ -21,16 +21,25 @@ export default function AccountPage() {
       console.error(error);
       return;
     }
-    const { data: profileData, error: profileError } = await supabase.from("users").select("invite_code, avatar_url, display_name").eq("id", data.user?.id).single();
+    const { data: profileData, error: profileError } = await supabase
+      .from("users")
+      .select("invite_code, avatar_url, display_name")
+      .eq("id", data.user?.id)
+      .single();
     if (profileError) {
       console.error(profileError);
       return;
     }
 
     setInviteCode(profileData?.invite_code ?? "");
-    if (profileData?.avatar_url) {
-      setAvatarUrl(profileData.avatar_url);  // ★ 既存アバターを表示
-    } 
+
+    // Google アカウント由来のアイコンは無視して、デフォルトを使う
+    const avatar = profileData?.avatar_url as string | null;
+    if (avatar && !avatar.includes("lh3.googleusercontent.com")) {
+      setAvatarUrl(avatar);
+    } else {
+      setAvatarUrl(DEFAULT_AVATAR);
+    }
 
     setDisplayName(profileData?.display_name ?? "");
   }
@@ -124,6 +133,21 @@ export default function AccountPage() {
       console.error(insertError);
       setFriendMessage("フレンド追加に失敗しました");
       return;
+    }
+
+    // ④ 通知を作成（notification テーブル）
+    const notificationMessage = `${displayName || "だれか"}があなたをフレンドに追加しました`;
+
+    const { error: notificationError } = await supabase
+      .from("notifications")
+      .insert({
+        user_id: target.id,
+        message: notificationMessage,
+      });
+
+    if (notificationError) {
+      console.error(notificationError);
+      // 通知の保存に失敗してもフレンド追加自体は成功として扱う
     }
 
     setFriendMessage("フレンドを追加しました");

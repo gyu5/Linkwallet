@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import DestinationCard from "./DestinationCard";
 import ResultDialog from "./ResultDialog";
+import { createSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 
 type Destination = {
   bankName: string;
@@ -19,15 +20,17 @@ type ResultStatus = "success" | "error" | null;
 type Props = {
   points: number;
   destination: Destination;
+  groupId: string;
 };
 
 
-export default function WithdrawScreen({ points, destination }: Props) {
+export default function WithdrawScreen({ points, destination, groupId }: Props) {
   const [notifyChecked, setNotifyChecked] = useState(true);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ResultStatus>(null);
   const router = useRouter();
   const yen = points; // 1ポイント=1円の想定。違うレートなら計算を書き換え
+  const supabase = createSupabaseBrowserClient();
 
   const format = (n: number) => n.toLocaleString("ja-JP");
 
@@ -37,12 +40,80 @@ export default function WithdrawScreen({ points, destination }: Props) {
 
     try {
       // 本来はここで API を叩く
-      // 例: await withdrawApi({ points, destination, notify: notifyChecked });
-      await new Promise((res) => setTimeout(res, 800)); // ダミー待機
+      // ここでは Supabase を直接叩いて user_groups.saving_amount を 0 に更新する
 
-      // 成功 or 失敗をここで判定
-      const isSuccess = true; // 今は常に成功扱い
-      setResult(isSuccess ? "success" : "error");
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error(userError);
+        setResult("error");
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from("user_groups")
+        .update({ saving_amount: 0 })
+        .eq("user_id", user.id)
+        .eq("group_id", groupId);
+
+      if (updateError) {
+        console.error(updateError);
+        setResult("error");
+        return;
+      }
+
+      // 出金に成功したら、グループ内の他メンバーに通知を送る
+      try {
+        // グループ名とユーザー名を取得
+        const [{ data: group }, { data: profile }, { data: members }] =
+          await Promise.all([
+            supabase
+              .from("groups")
+              .select("display_name")
+              .eq("id", groupId)
+              .maybeSingle(),
+            supabase
+              .from("users")
+              .select("display_name")
+              .eq("id", user.id)
+              .maybeSingle(),
+            supabase
+              .from("user_groups")
+              .select("user_id")
+              .eq("group_id", groupId),
+          ]);
+
+        const groupName = (group as any)?.display_name ?? "このグループ";
+        const userName = (profile as any)?.display_name ?? "だれか";
+
+        const notificationMessage = `${groupName}の${userName}が出金しました`;
+
+        const notificationRows =
+          members
+            ?.filter((m: any) => m.user_id !== user.id)
+            .map((m: any) => ({
+              user_id: m.user_id,
+              message: notificationMessage,
+            })) ?? [];
+
+        if (notificationRows.length > 0) {
+          const { error: notificationsError } = await supabase
+            .from("notifications")
+            .insert(notificationRows);
+
+          if (notificationsError) {
+            console.error(notificationsError);
+          }
+        }
+      } catch (e) {
+        console.error("failed to send withdraw notifications", e);
+      }
+
+      // 成功とみなす
+      setResult("success");
     } catch (e) {
       setResult("error");
     } finally {

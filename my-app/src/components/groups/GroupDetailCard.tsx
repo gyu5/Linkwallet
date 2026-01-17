@@ -1,11 +1,6 @@
 // components/groups/GroupDetailCard.tsx
 "use client";
 
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Pagination } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/pagination";
-
 import GroupMembersList from "./GroupMembersList";
 
 type Member = {
@@ -13,11 +8,14 @@ type Member = {
   name: string;
   progress: number;
   avatarUrl?: string | null;
+  message?: string | null;
 };
 
 type GroupDetailCardProps = {
   groupProgress: number;
   members: Member[];
+  groupId: string;
+  currentUserId?: string;
 };
 
 function getTreeImage(progress: number) {
@@ -28,43 +26,42 @@ function getTreeImage(progress: number) {
   if (progress < 62.5) return "/tree/tree_seichou05.png";
   if (progress < 75) return "/tree/tree_seichou06.png";
   if (progress < 87.5) return "/tree/tree_seichou07.png";
-  return "/tree/tree_seichou08.png";
+  if (progress < 100) return "/tree/tree_seichou08.png";
+  return "/tree/tree_seichou09.png";
 }
 
 export default function GroupDetailCard({
   groupProgress,
   members,
+  groupId,
+  currentUserId,
 }: GroupDetailCardProps) {
   const treeImage = getTreeImage(groupProgress);
 
   return (
     <div className="w-full max-w-md mx-auto px-4 mt-4">
-      {/* カードの枠は共通で中身だけスライド */}
       <div className="bg-[#F5F5F5] rounded-2xl border border-gray-300 shadow-sm px-4 py-4">
-        <Swiper
-          modules={[Pagination]}
-          slidesPerView={1}
-          pagination={{ clickable: true }}
-          className="pb-6"
-        >
-          {/* スライド1：木の画像 */}
-          <SwiperSlide>
-            <div className="flex items-center justify-center h-48">
-              <img
-                src={treeImage}
-                alt="tree"
-                className="max-h-full object-contain"
-              />
-            </div>
-          </SwiperSlide>
+        {/* 上：木の画像 */}
+        <div className="flex items-center justify-center h-48 mb-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={treeImage}
+            alt="tree"
+            className="max-h-full object-contain"
+          />
+        </div>
 
-          {/* スライド2：メンバー一覧 */}
-          <SwiperSlide>
-            <div className="h-48 overflow-y-auto">
-              <GroupMembersList members={members} />
-            </div>
-          </SwiperSlide>
-        </Swiper>
+        {/* セパレーター */}
+        <div className="h-px bg-gray-300 mb-4" />
+
+        {/* 下：メンバー一覧 */}
+        <div className="max-h-56 overflow-y-auto">
+          <GroupMembersList
+            members={members}
+            groupId={groupId}
+            currentUserId={currentUserId}
+          />
+        </div>
       </div>
     </div>
   );
