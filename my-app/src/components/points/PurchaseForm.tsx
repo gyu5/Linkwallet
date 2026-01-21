@@ -1,7 +1,7 @@
 // components/points/PurchaseForm.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PurchaseHeader from "./PurchaseHeader";
 import AmountInput from "./AmountInput";
 import { createSupabaseBrowserClient } from "@/lib/supabaseBrowser";
@@ -21,7 +21,110 @@ export default function PurchaseForm({ goalName, groupId }: PurchaseFormProps) {
   const [popup, setPopup] = useState<PopupState>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRegular, setIsRegular] = useState(false); // false: 一回のみ, true: 定期
+  const [payMethod, setPayMethod] = useState<
+    "qr" | "bank" | "merpay" | "dbarai"
+  >("qr");
+  const [regularInfo, setRegularInfo] = useState<{
+    perPayment: number;
+    remaining: number;
+    count: number;
+    deadline: string;
+  } | null>(null);
+  const [regularError, setRegularError] = useState<string | null>(null);
   const supabase = createSupabaseBrowserClient();
+
+  const countMonthlyPayments = (now: Date, deadline: Date) => {
+    if (deadline.getTime() < now.getTime()) return 0;
+    let count = 0;
+    const currentMonthStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1
+    );
+    let cursor = now.getTime() <= currentMonthStart.getTime()
+      ? currentMonthStart
+      : new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    while (cursor.getTime() <= deadline.getTime()) {
+      count += 1;
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    }
+    return count;
+  };
+
+  useEffect(() => {
+    const fetchRegularInfo = async () => {
+      if (!isRegular) {
+        setRegularInfo(null);
+        setRegularError(null);
+        return;
+      }
+
+      try {
+        setRegularError(null);
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+          setRegularError("ログイン情報が取得できませんでした。");
+          return;
+        }
+
+        const [{ data: group }, { data: userGroup }] = await Promise.all([
+          supabase
+            .from("groups")
+            .select("goal_amount, dead_line")
+            .eq("id", groupId)
+            .maybeSingle(),
+          supabase
+            .from("user_groups")
+            .select("saving_amount")
+            .eq("user_id", user.id)
+            .eq("group_id", groupId)
+            .maybeSingle(),
+        ]);
+
+        const goalAmount = Number(group?.goal_amount ?? 0);
+        const savingAmount = Number(userGroup?.saving_amount ?? 0);
+        const deadlineRaw = group?.dead_line as string | null | undefined;
+
+        if (!deadlineRaw || goalAmount <= 0) {
+          setRegularError("目標額または締切が設定されていません。");
+          return;
+        }
+
+        const deadline = new Date(deadlineRaw);
+        if (Number.isNaN(deadline.getTime())) {
+          setRegularError("締切の日付が不正です。");
+          return;
+        }
+
+        const remaining = Math.max(goalAmount - savingAmount, 0);
+        const count = countMonthlyPayments(new Date(), deadline);
+
+        if (count <= 0) {
+          setRegularError("期日までに貯金できる回数がありません。");
+          return;
+        }
+
+        const perPayment = Math.ceil(remaining / count);
+        setRegularInfo({
+          perPayment,
+          remaining,
+          count,
+          deadline: deadline.toLocaleDateString("ja-JP"),
+        });
+        setAmount(String(perPayment));
+      } catch (e) {
+        console.error(e);
+        setRegularError("定期計算に失敗しました。");
+      }
+    };
+
+    void fetchRegularInfo();
+  }, [isRegular, groupId, supabase]);
 
   const handleConfirm = async () => {
     if (!amount) {
@@ -222,29 +325,170 @@ export default function PurchaseForm({ goalName, groupId }: PurchaseFormProps) {
           </div>
         </div>
 
-        {/* 支払い方法（モック：PayPay QR決済） */}
+        {/* 定期の計算結果 */}
+        {isRegular && (
+          <div className="px-6 mt-4 text-black">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 text-xs">
+              <p className="font-semibold text-gray-700 mb-1">定期貯金</p>
+              {regularError ? (
+                <p className="text-red-500">{regularError}</p>
+              ) : regularInfo ? (
+                <div className="space-y-1 text-gray-700">
+                  <p>
+                    締切: {regularInfo.deadline} / 残り{regularInfo.count}
+                    回
+                  </p>
+                  <p className="text-sm font-semibold text-black">
+                    1回あたり {regularInfo.perPayment.toLocaleString("ja-JP")}
+                    円
+                  </p>
+                  <p className="text-[10px] text-gray-500">
+                    残額 {regularInfo.remaining.toLocaleString("ja-JP")} 円を
+                    月初に分割
+                  </p>
+                </div>
+              ) : (
+                <p className="text-gray-500">計算中...</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 支払い方法（モック） */}
         <div className="px-6 mt-8">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3">
-            <p className="text-xs font-semibold text-gray-600 mb-3">
-              入金元
-            </p>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-md bg-red-500 flex items-center justify-center">
-                  <span className="text-xs font-bold text-white">P</span>
+            <p className="text-xs font-semibold text-gray-600 mb-3">入金元</p>
+            <div className="flex flex-col gap-3">
+              {/* QRコード決済 */}
+              <button
+                type="button"
+                onClick={() => setPayMethod("qr")}
+                className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left ${
+                  payMethod === "qr"
+                    ? "border-emerald-400 bg-emerald-50"
+                    : "border-gray-200 bg-white"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-md bg-red-500 flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">P</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-gray-800">
+                      PayPay Wallet
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      オンライン決済
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-gray-800">
-                    P⚪︎yPay Wallet
-                  </span>
-                  <span className="text-[10px] text-gray-500">
-                    オンライン決済
-                  </span>
+                <span
+                  className={`material-symbols-outlined text-lg ${
+                    payMethod === "qr" ? "text-emerald-500" : "text-gray-300"
+                  }`}
+                >
+                  check_circle
+                </span>
+              </button>
+
+              {/* メルペイ */}
+              <button
+                type="button"
+                onClick={() => setPayMethod("merpay")}
+                className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left ${
+                  payMethod === "merpay"
+                    ? "border-emerald-400 bg-emerald-50"
+                    : "border-gray-200 bg-white"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-md bg-yellow-400 flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">m</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-gray-800">
+                      メルペイ
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      オンライン決済（モック）
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <span className="material-symbols-outlined text-emerald-500 text-lg">
-                check_circle
-              </span>
+                <span
+                  className={`material-symbols-outlined text-lg ${
+                    payMethod === "merpay" ? "text-emerald-500" : "text-gray-300"
+                  }`}
+                >
+                  check_circle
+                </span>
+              </button>
+
+              {/* d払い */}
+              <button
+                type="button"
+                onClick={() => setPayMethod("dbarai")}
+                className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left ${
+                  payMethod === "dbarai"
+                    ? "border-emerald-400 bg-emerald-50"
+                    : "border-gray-200 bg-white"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-md bg-red-500 flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">d</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-gray-800">
+                      d払い
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      オンライン決済（モック）
+                    </span>
+                  </div>
+                </div>
+                <span
+                  className={`material-symbols-outlined text-lg ${
+                    payMethod === "dbarai" ? "text-emerald-500" : "text-gray-300"
+                  }`}
+                >
+                  check_circle
+                </span>
+              </button>
+
+              {/* 銀行口座 */}
+              <button
+                type="button"
+                onClick={() => setPayMethod("bank")}
+                className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left ${
+                  payMethod === "bank"
+                    ? "border-emerald-400 bg-emerald-50"
+                    : "border-gray-200 bg-white"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-md bg-slate-600 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[18px] text-white">
+                      account_balance
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-gray-800">
+                      銀行口座
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      口座引き落とし（モック）
+                    </span>
+                  </div>
+                </div>
+                <span
+                  className={`material-symbols-outlined text-lg ${
+                    payMethod === "bank" ? "text-emerald-500" : "text-gray-300"
+                  }`}
+                >
+                  check_circle
+                </span>
+              </button>
+              
             </div>
           </div>
         </div>
