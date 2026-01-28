@@ -1,0 +1,152 @@
+"use client";
+
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
+import Image from "next/image";
+import "swiper/css";
+import "swiper/css/pagination";
+import Link from "next/link";
+
+type Card = {
+  id: string;
+  display_name: string;
+  progress: number;
+  shouldProgress?: number;
+  goal_amount: number;
+  dead_line?: string | null;
+  is_regular?: boolean | null;
+  currentSaving: number;
+};
+
+export default function TravelCardCarousel({groups}: {groups: Card[]}) {
+  return (
+    <div className="flex justify-center pt-8">
+      {/* 画面幅に合わせて広がるが、最大幅は制限して「ちょうどよく」見せる */}
+      <div className="w-full max-w-sm px-4">
+        <Swiper
+          modules={[Pagination]}
+          spaceBetween={24}
+          slidesPerView={1}
+          pagination={{ clickable: true }}
+          className="pb-8"
+        >
+          {groups.map((card: Card, idx: number) => (
+            <SwiperSlide key={idx}>
+              <TravelCard group={card} />
+            </SwiperSlide>
+          ))}
+        </Swiper>
+      </div>
+    </div>
+  );
+}
+
+function getTreeImage(progress: number) {
+  if (progress < 12.5) return "tree/tree_seichou01.png";
+  if (progress < 25) return "tree/tree_seichou02.png";
+  if (progress < 37.5) return "tree/tree_seichou03.png";
+  if (progress < 50) return "tree/tree_seichou04.png";
+  if (progress < 62.5) return "tree/tree_seichou05.png";
+  if (progress < 75) return "tree/tree_seichou06.png";
+  if (progress < 87.5) return "tree/tree_seichou07.png";
+  if (progress < 100) return "tree/tree_seichou08.png";
+  return "tree/tree_seichou09.png";
+}
+
+
+function TravelCard({ group }: { group: Card }) {
+  const percentage = group.progress;
+  const should = group.shouldProgress ?? null;
+  const goal = group.goal_amount;
+  const deadline = group.dead_line ?? null;
+  const isRegular = Boolean(group.is_regular);
+  const currentSaving = group.currentSaving ?? 0;
+  const treeImage = getTreeImage(percentage);
+  const markerPos =
+    typeof should === "number" ? Math.min(Math.max(should, 0), 100) : null;
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("ja-JP");
+  };
+
+  return (
+    <div className="relative rounded-2xl border border-gray-300 bg-white shadow-sm px-6 py-5 pt-5 pb-10">
+      {/* 目標＆締切カード */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-3 py-2 mb-3 grid grid-cols-3 gap-2 text-xs text-black">
+        <div className="flex flex-col">
+          <span className="text-gray-500">目標額</span>
+          <span className="text-sm font-semibold">
+            {goal ? goal.toLocaleString("ja-JP") : "-"} 円
+          </span>
+        </div>
+        <div className="flex flex-col text-center">
+          <span className="text-gray-500">現在額</span>
+          <span className="text-sm font-semibold">
+            {currentSaving.toLocaleString("ja-JP")} 円
+          </span>
+        </div>
+        <div className="flex flex-col text-right">
+          <span className="text-gray-500">締切</span>
+          <span className="text-sm font-semibold">{formatDate(deadline)}</span>
+        </div>
+      </div>
+
+      {/* タイトル */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="text-lg font-semibold text-black">{group.display_name}</div>
+        {isRegular && (
+          <span className="text-xs font-bold text-orange-700 bg-orange-100 border border-orange-200 px-3 py-1 rounded-full">
+            定期
+          </span>
+        )}
+      </div>
+
+      {/* 進捗バー */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="relative flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-green-500"
+            style={{ width: `${percentage}%` }}
+          />
+          {markerPos !== null && (
+            <div
+              className="absolute top-0 bottom-0 w-[2px] bg-red-500/70"
+              style={
+                markerPos >= 100
+                  ? { right: 0 }
+                  : { left: `${markerPos}%` }
+              }
+              aria-label="期日ペース"
+            />
+          )}
+        </div>
+        <div className="text-base font-semibold text-black">{percentage}%</div>
+      </div>
+
+      <div className="h-px bg-gray-200 mb-6" />
+
+      {/* 🌳 木の画像（ここが核心） */}
+      <div className="w-full h-48 flex justify-center items-center mb-6">
+        <Image
+          src={`/${treeImage}`}    // public/tree/... に画像がある場合
+          alt="tree-stage"
+          width={200}
+          height={200}
+          className="h-full object-contain"
+        />
+      </div>
+
+      {/* ボタン */}
+      <div className="flex justify-center">
+        <Link href={`/points/purchase/${group.id}`}>
+          <button className="px-6 py-2 rounded-full border border-white-200 text-xs text-white-500 bg-red-500">
+            貯金する
+          </button>
+        </Link>
+      </div>
+    </div>
+  );
+}
